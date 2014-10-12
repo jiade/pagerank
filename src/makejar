@@ -1,0 +1,5 @@
+#!/bin/bash
+
+$HADOOP_HOME/bin/hadoop com.sun.tools.javac.Main PageRank.java
+jar cf PageRank.jar PageRank*.class
+rm -f PageRank*.class

@@ -353,7 +353,8 @@ public class PageRank {
 		int run = 0;
 		long delta = Long.MAX_VALUE;
 		long start_time = System.currentTimeMillis(); // time the job
-		for (; constIter > 0 ? run < constIter : delta > 0; run++)
+		long run_10_time = start_time;
+		for (; constIter > 0 ? run < constIter : delta > 0;)
 		{
 			Configuration conf = new Configuration();
 			conf.set("number of nodes", String.valueOf(N));
@@ -390,10 +391,15 @@ public class PageRank {
 			// retrieve current pagerank diff
 			delta = convJob.getCounters().findCounter(CountersEnum.SUM_CONVERGENCE).getValue();
 			System.out.println("current delta = "+ delta);
-
+			run++;
+			if (run == 10)
+			{
+				run_10_time = System.currentTimeMillis();
+			}
 		}
 		long end_time = System.currentTimeMillis(); // end the timer
-		float duration = (float)(end_time - start_time)/1000; // in seconds
+		float wholeDuration = (float)(end_time - start_time)/1000; // in seconds
+		float time10Duration = (float)(run_10_time - start_time)/1000; // in seconds
 	
 		//-------------- STEP 4: ranking the result in descending order and arrange output with clean-up
 		Configuration rankingConf = new Configuration();
@@ -419,7 +425,8 @@ public class PageRank {
 			BufferedWriter bw=new BufferedWriter(new OutputStreamWriter(hdfs.create(pt,true)));
 			// write statistics
 			bw.write(String.format("number of iterations = %d\n", run));
-			bw.write(String.format("total execution time = %.3f seconds\n\n", duration));
+			bw.write(String.format("execution time for first 10 runs = %.3f seconds\n", time10Duration));
+			bw.write(String.format("total execution time = %.3f seconds\n\n", wholeDuration));
 			bw.write("Top 10 largest page rank nodes are: \n");
 			String str = null;
 			for (int cnt = 0; cnt < 10;)
