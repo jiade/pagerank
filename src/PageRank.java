@@ -1,5 +1,7 @@
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.regex.Pattern;
 
@@ -350,6 +352,7 @@ public class PageRank {
 		// the input are in temp/input[run] folder
 		int run = 0;
 		long delta = Long.MAX_VALUE;
+		long start_time = System.currentTimeMillis(); // time the job
 		for (; constIter > 0 ? run < constIter : delta > 0; run++)
 		{
 			Configuration conf = new Configuration();
@@ -389,7 +392,9 @@ public class PageRank {
 			System.out.println("current delta = "+ delta);
 
 		}
-		
+		long end_time = System.currentTimeMillis(); // end the timer
+		float duration = (float)(end_time - start_time)/1000; // in seconds
+	
 		//-------------- STEP 4: ranking the result in descending order and arrange output with clean-up
 		Configuration rankingConf = new Configuration();
 		Job rankingJob = new Job(rankingConf, "ranking job hadoop-0.20");
@@ -399,18 +404,36 @@ public class PageRank {
 		rankingJob.setOutputValueClass(NullWritable.class);
 		rankingJob.setSortComparatorClass(DescendingFloatComparator.class);
 		FileInputFormat.addInputPath(rankingJob, new Path(tempPath, "input"+ String.valueOf(run)));
-		FileOutputFormat.setOutputPath(rankingJob, new Path(outputPath, "results_ranked"));
+		Path outputRankedPath = new Path(outputPath, "results_ranked");
+		FileOutputFormat.setOutputPath(rankingJob, outputRankedPath);
 		rankingJob.waitForCompletion(true);
-		// record number of iterations run and do trivial clean-up
+		// clean up results to targeted output
 		try 
 		{
 			FileSystem hdfs = FileSystem.get(new Configuration());
+			// extract top 10 lines from results and write to the statistics file
+			Path mergedFile = new Path(tempPath, "merged.txt");
+			FileUtil.copyMerge(hdfs, outputRankedPath, hdfs, mergedFile, false, new Configuration(), "");
+			BufferedReader br=new BufferedReader(new InputStreamReader(hdfs.open(mergedFile)));
 			Path pt = new Path(outputPath, "statistics.txt");
-			BufferedWriter br=new BufferedWriter(new OutputStreamWriter(hdfs.create(pt,true)));
-			br.write(String.format("number of iterations = %d\n", run));
-			br.close();
+			BufferedWriter bw=new BufferedWriter(new OutputStreamWriter(hdfs.create(pt,true)));
+			// write statistics
+			bw.write(String.format("number of iterations = %d\n", run));
+			bw.write(String.format("total execution time = %.3f seconds\n\n", duration));
+			bw.write("Top 10 largest page rank nodes are: \n");
+			String str = null;
+			for (int cnt = 0; cnt < 10;)
+			{
+				if ((str = br.readLine()).equals(""))
+				{
+					continue; // just ignore empty line (in case)
+				}
+				bw.write(str +"\n");
+				cnt++;
+			}
+			bw.close();
 			// clean up temp folders
-			hdfs.delete(tempPath, true);
+			//hdfs.delete(tempPath, true);
 		} 
 		catch (Exception e) 
 		{
