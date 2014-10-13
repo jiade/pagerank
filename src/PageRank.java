@@ -338,6 +338,7 @@ public class PageRank {
 		gPropertyJob.setJarByClass(PageRank.class);
 		gPropertyJob.setMapperClass(GraphPropertyMapper.class);
 		gPropertyJob.setReducerClass(GraphPropertyReducer.class);
+		gPropertyJob.setNumReduceTasks(1);
 		//numNodeJob.setOutputFormatClass(NullOutputFormat.class);
 		gPropertyJob.setOutputKeyClass(Text.class);
 		gPropertyJob.setOutputValueClass(Text.class);
@@ -406,6 +407,7 @@ public class PageRank {
 		Job rankingJob = new Job(rankingConf, "ranking job hadoop-0.20");
 		rankingJob.setJarByClass(PageRank.class);
 		rankingJob.setMapperClass(RankingMapper.class);
+		rankingJob.setNumReduceTasks(1);
 		rankingJob.setOutputKeyClass(Text.class);
 		rankingJob.setOutputValueClass(NullWritable.class);
 		rankingJob.setSortComparatorClass(DescendingFloatComparator.class);
@@ -416,7 +418,8 @@ public class PageRank {
 		// clean up results to targeted output
 		try 
 		{
-			FileSystem hdfs = FileSystem.get(new Configuration());
+			//FileSystem hdfs = FileSystem.get(uri, new Configuration());
+			FileSystem hdfs = workingDir.getFileSystem(new Configuration());
 			// extract top 10 lines from results and write to the statistics file
 			Path mergedFile = new Path(tempPath, "merged.txt");
 			FileUtil.copyMerge(hdfs, outputRankedPath, hdfs, mergedFile, false, new Configuration(), "");
